@@ -24,6 +24,8 @@ interface ControlPanelProps {
   onStopRecording: () => void;
   onAlarmToggle: () => void;
   cameraConnected: boolean;
+  nightVision: boolean;
+  onNightVisionToggle: () => void;
 }
 
 export const ControlPanel = ({
@@ -32,10 +34,11 @@ export const ControlPanel = ({
   onStartRecording,
   onStopRecording,
   onAlarmToggle,
-  cameraConnected
+  cameraConnected,
+  nightVision,
+  onNightVisionToggle
 }: ControlPanelProps) => {
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [nightVision, setNightVision] = useState(false);
   const [motionDetection, setMotionDetection] = useState(true);
 
   return (
@@ -100,7 +103,7 @@ export const ControlPanel = ({
             </div>
             <Switch
               checked={nightVision}
-              onCheckedChange={setNightVision}
+              onCheckedChange={onNightVisionToggle}
             />
           </div>
 

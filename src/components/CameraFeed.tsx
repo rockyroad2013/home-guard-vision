@@ -1,23 +1,28 @@
 import { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, Video, Square, Pause, Play } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Camera, Video, Square, Pause, Play, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CameraFeedProps {
   onStartRecording: () => void;
   onStopRecording: (recordingUrl: string) => void;
   isRecording: boolean;
+  nightVision: boolean;
+  onNightVisionToggle: () => void;
 }
 
-export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording }: CameraFeedProps) => {
+export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording, nightVision, onNightVisionToggle }: CameraFeedProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
-    startCamera();
+    getCameraDevices();
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -25,12 +30,55 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording }: C
     };
   }, []);
 
-  const startCamera = async () => {
+  useEffect(() => {
+    if (selectedCamera) {
+      startCamera(selectedCamera);
+    }
+  }, [selectedCamera]);
+
+  const getCameraDevices = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720 },
-        audio: true 
+      // Request permission first
+      await navigator.mediaDevices.getUserMedia({ video: true });
+      
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      
+      setAvailableCameras(videoDevices);
+      
+      if (videoDevices.length > 0 && !selectedCamera) {
+        setSelectedCamera(videoDevices[0].deviceId);
+      }
+      
+      toast({
+        title: "Cameras Detected",
+        description: `Found ${videoDevices.length} camera(s)`,
       });
+    } catch (error) {
+      console.error("Error getting camera devices:", error);
+      toast({
+        title: "Camera Detection Failed",
+        description: "Unable to detect camera devices",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startCamera = async (deviceId?: string) => {
+    try {
+      // Stop existing stream
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+
+      const constraints: MediaStreamConstraints = {
+        video: deviceId ? 
+          { deviceId: { exact: deviceId }, width: 1280, height: 720 } :
+          { width: 1280, height: 720 },
+        audio: true
+      };
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       
       setStream(mediaStream);
       if (videoRef.current) {
@@ -38,9 +86,12 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording }: C
         setIsPlaying(true);
       }
       
+      // Get camera label for toast
+      const cameraLabel = availableCameras.find(cam => cam.deviceId === deviceId)?.label || "Default Camera";
+      
       toast({
         title: "Camera Connected",
-        description: "Live feed is now active",
+        description: `${cameraLabel} is now active`,
       });
     } catch (error) {
       console.error("Error accessing camera:", error);
@@ -142,13 +193,49 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording }: C
 
   return (
     <div className="space-y-4">
+      {/* Camera Controls */}
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex-1">
+          <Select value={selectedCamera} onValueChange={setSelectedCamera}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Camera" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCameras.map((camera) => (
+                <SelectItem key={camera.deviceId} value={camera.deviceId}>
+                  {camera.label || `Camera ${camera.deviceId.slice(0, 8)}...`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <Button
+          size="sm"
+          variant={nightVision ? "default" : "outline"}
+          onClick={onNightVisionToggle}
+          className={nightVision ? "bg-success hover:bg-success/90 text-success-foreground" : "border-success text-success hover:bg-success hover:text-success-foreground"}
+        >
+          {nightVision ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+          Night Vision
+        </Button>
+      </div>
+
       {/* Video Feed */}
       <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border border-border">
         <video
           ref={videoRef}
           autoPlay
           muted
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover transition-all duration-300 ${
+            nightVision 
+              ? 'filter brightness-75 contrast-150 hue-rotate-90 saturate-50' 
+              : ''
+          }`}
+          style={nightVision ? {
+            filter: 'brightness(0.8) contrast(1.5) hue-rotate(90deg) saturate(0.5) sepia(0.3)',
+            backgroundColor: '#001100'
+          } : {}}
           onLoadedMetadata={() => {
             if (videoRef.current) {
               videoRef.current.play();
@@ -156,8 +243,19 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording }: C
           }}
         />
         
+        {/* Night Vision Overlay */}
+        {nightVision && (
+          <div className="absolute inset-0 bg-gradient-to-b from-green-900/10 to-green-800/20 pointer-events-none">
+            <div className="absolute top-4 right-4 text-green-400 text-xs font-mono bg-black/50 px-2 py-1 rounded">
+              NIGHT VISION ACTIVE
+            </div>
+          </div>
+        )}
+
         {/* Overlay Controls */}
-        <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity duration-300">
+        <div className={`absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 ${
+          nightVision ? 'bg-green-900/20' : 'bg-black/20'
+        }`}>
           <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
             <div className="flex gap-2">
               <Button

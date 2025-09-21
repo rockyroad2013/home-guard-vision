@@ -13,6 +13,7 @@ export const SecurityDashboard = () => {
   const [alarmActive, setAlarmActive] = useState(false);
   const [cameraConnected, setCameraConnected] = useState(false);
   const [recordings, setRecordings] = useState<string[]>([]);
+  const [nightVision, setNightVision] = useState(false);
 
   useEffect(() => {
     // Check camera availability
@@ -32,6 +33,10 @@ export const SecurityDashboard = () => {
 
   const handleAlarmToggle = () => {
     setAlarmActive(prev => !prev);
+  };
+
+  const handleNightVisionToggle = () => {
+    setNightVision(prev => !prev);
   };
 
   return (
@@ -107,6 +112,8 @@ export const SecurityDashboard = () => {
               onStartRecording={handleStartRecording}
               onStopRecording={handleStopRecording}
               isRecording={isRecording}
+              nightVision={nightVision}
+              onNightVisionToggle={handleNightVisionToggle}
             />
           </Card>
         </div>
@@ -120,6 +127,8 @@ export const SecurityDashboard = () => {
             onStopRecording={() => handleStopRecording('')}
             onAlarmToggle={handleAlarmToggle}
             cameraConnected={cameraConnected}
+            nightVision={nightVision}
+            onNightVisionToggle={handleNightVisionToggle}
           />
         </div>
       </div>
