@@ -16,6 +16,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useState } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface ControlPanelProps {
   isRecording: boolean;
@@ -40,6 +41,7 @@ export const ControlPanel = ({
 }: ControlPanelProps) => {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [motionDetection, setMotionDetection] = useState(true);
+  const { storageInfo, clearAllFiles } = useLocalStorage();
 
   return (
     <Card className="p-4 space-y-4 border-border">
@@ -164,11 +166,11 @@ export const ControlPanel = ({
         <h4 className="text-sm font-medium text-muted-foreground">Storage</h4>
         
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" className="flex-1">
+          <Button size="sm" variant="outline" className="flex-1" disabled>
             <Download className="w-3 h-3 mr-1" />
             Export
           </Button>
-          <Button size="sm" variant="outline" className="flex-1">
+          <Button size="sm" variant="outline" className="flex-1" onClick={clearAllFiles}>
             <Trash2 className="w-3 h-3 mr-1" />
             Clear
           </Button>
@@ -177,10 +179,10 @@ export const ControlPanel = ({
         <div className="text-xs text-muted-foreground">
           <div className="flex justify-between">
             <span>Used Storage:</span>
-            <span>2.3 GB / 10 GB</span>
+            <span>{(storageInfo.used / (1024 * 1024)).toFixed(1)} MB / {(storageInfo.total / (1024 * 1024 * 1024)).toFixed(0)} GB</span>
           </div>
           <div className="w-full bg-muted rounded-full h-1 mt-1">
-            <div className="bg-primary h-1 rounded-full w-[23%]"></div>
+            <div className="bg-primary h-1 rounded-full transition-all duration-300" style={{ width: `${Math.min((storageInfo.used / storageInfo.total) * 100, 100)}%` }}></div>
           </div>
         </div>
       </div>

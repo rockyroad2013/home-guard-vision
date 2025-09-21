@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Camera, Video, Square, Pause, Play, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface CameraFeedProps {
   onStartRecording: () => void;
@@ -20,6 +21,7 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording, nig
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>('');
   const { toast } = useToast();
+  const { saveRecording, saveScreenshot } = useLocalStorage();
 
   useEffect(() => {
     getCameraDevices();
@@ -103,7 +105,7 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording, nig
     }
   };
 
-  const takeScreenshot = () => {
+  const takeScreenshot = async () => {
     if (!videoRef.current) return;
 
     const canvas = document.createElement('canvas');
@@ -115,17 +117,27 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording, nig
     if (ctx) {
       ctx.drawImage(video, 0, 0);
       
-      canvas.toBlob((blob) => {
+      // Apply night vision filter if enabled
+      if (nightVision) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          data[i] = 0;     // Red
+          data[i + 1] = avg; // Green (enhanced for night vision)
+          data[i + 2] = 0;   // Blue
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+      }
+      
+      canvas.toBlob(async (blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `screenshot-${new Date().toISOString()}.png`;
-          a.click();
-          
+          await saveScreenshot(blob);
           toast({
-            title: "Screenshot Taken",
-            description: "Image saved to downloads",
+            title: "Screenshot Saved",
+            description: "Screenshot stored locally on your device",
           });
         }
       });
@@ -143,20 +155,14 @@ export const CameraFeed = ({ onStartRecording, onStopRecording, isRecording, nig
         chunks.push(event.data);
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        onStopRecording(url);
-        
-        // Auto-download the recording
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recording-${new Date().toISOString()}.webm`;
-        a.click();
+        await saveRecording(blob);
+        onStopRecording('');
         
         toast({
           title: "Recording Saved",
-          description: "Video saved to downloads",
+          description: "Video stored locally on your device",
         });
       };
 
