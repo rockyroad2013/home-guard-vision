@@ -45,6 +45,13 @@ export const RecordingHistory = ({ recordings: recordingUrls }: RecordingHistory
     setPreviewFile(url);
   };
 
+  const closePreview = () => {
+    if (previewFile) {
+      URL.revokeObjectURL(previewFile);
+    }
+    setPreviewFile(null);
+  };
+
   const recordings = files.filter(f => f.type === 'recording');
   const screenshots = files.filter(f => f.type === 'screenshot');
   const usedPercentage = (storageInfo.used / storageInfo.total) * 100;
@@ -190,31 +197,88 @@ export const RecordingHistory = ({ recordings: recordingUrls }: RecordingHistory
         </TabsContent>
       </Tabs>
 
-      {/* Preview Modal */}
+      {/* Enhanced Preview Modal */}
       {previewFile && (
         <div 
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
-          onClick={() => {
-            URL.revokeObjectURL(previewFile);
-            setPreviewFile(null);
-          }}
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+          onClick={closePreview}
         >
-          <div className="max-w-4xl max-h-[80vh] p-4">
-            {previewFile.includes('video') ? (
-              <video 
-                src={previewFile} 
-                controls 
-                className="max-w-full max-h-full rounded-lg"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <img 
-                src={previewFile} 
-                alt="Screenshot preview" 
-                className="max-w-full max-h-full rounded-lg"
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
+          <div className="relative max-w-5xl max-h-[90vh] w-full">
+            {/* Close Button */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="absolute -top-12 right-0 bg-black/50 border-white/20 text-white hover:bg-white/20 z-10"
+              onClick={closePreview}
+            >
+              ✕ Close
+            </Button>
+            
+            <div 
+              className="bg-black rounded-lg overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {previewFile.includes('video') || previewFile.includes('webm') ? (
+                <video 
+                  src={previewFile} 
+                  controls 
+                  autoPlay
+                  className="w-full h-auto max-h-[80vh] rounded-lg"
+                  style={{ maxWidth: '100%' }}
+                  onLoadStart={() => console.log('Video loading...')}
+                  onCanPlay={() => console.log('Video ready to play')}
+                  onError={(e) => console.error('Video error:', e)}
+                >
+                  <p className="text-white p-4">
+                    Your browser doesn't support video playback. 
+                    <Button 
+                      variant="link" 
+                      className="text-primary underline ml-2"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = previewFile;
+                        link.download = 'recording.webm';
+                        link.click();
+                      }}
+                    >
+                      Download instead
+                    </Button>
+                  </p>
+                </video>
+              ) : (
+                <img 
+                  src={previewFile} 
+                  alt="Screenshot preview" 
+                  className="w-full h-auto max-h-[80vh] rounded-lg object-contain"
+                />
+              )}
+              
+              {/* Media Info Bar */}
+              <div className="bg-black/80 text-white p-3 flex justify-between items-center text-sm">
+                <div className="flex items-center gap-4">
+                  <span>Playing back recorded content</span>
+                  <Badge variant="secondary" className="bg-white/20 text-white">
+                    {previewFile.includes('video') ? 'Video' : 'Image'}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/20"
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = previewFile;
+                      link.download = previewFile.includes('video') ? 'recording.webm' : 'screenshot.png';
+                      link.click();
+                    }}
+                  >
+                    <Download className="w-3 h-3 mr-1" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
