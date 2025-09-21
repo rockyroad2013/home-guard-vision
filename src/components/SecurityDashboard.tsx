@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ export const SecurityDashboard = () => {
   const [cameraConnected, setCameraConnected] = useState(false);
   const [recordings, setRecordings] = useState<string[]>([]);
   const [nightVision, setNightVision] = useState(false);
+  const alarmAudioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     // Check camera availability
@@ -32,7 +33,17 @@ export const SecurityDashboard = () => {
   };
 
   const handleAlarmToggle = () => {
-    setAlarmActive(prev => !prev);
+    setAlarmActive(prev => {
+      const newState = !prev;
+      if (newState && alarmAudioRef.current) {
+        alarmAudioRef.current.currentTime = 0;
+        alarmAudioRef.current.play().catch(console.error);
+      } else if (!newState && alarmAudioRef.current) {
+        alarmAudioRef.current.pause();
+        alarmAudioRef.current.currentTime = 0;
+      }
+      return newState;
+    });
   };
 
   const handleNightVisionToggle = () => {
@@ -135,6 +146,15 @@ export const SecurityDashboard = () => {
 
       {/* Recording History */}
       <RecordingHistory recordings={recordings} />
+
+      {/* Hidden Audio Element for Alarm */}
+      <audio
+        ref={alarmAudioRef}
+        src="/alarm.flac"
+        loop
+        preload="auto"
+        className="hidden"
+      />
     </div>
   );
 };
